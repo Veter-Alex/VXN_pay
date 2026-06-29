@@ -1,0 +1,13 @@
+# /etc/wireguard/wg0.conf на VPN-VPS (132.243.123.55)
+# IP в туннеле: 10.10.0.1
+
+[Interface]
+Address = 10.10.0.1/24
+ListenPort = 51820
+PrivateKey = <VPN_VPS_PRIVATE_KEY>
+
+# Billing-VPS peer
+[Peer]
+PublicKey = <BILLING_VPS_PUBLIC_KEY>
+AllowedIPs = 10.10.0.2/32
+PersistentKeepalive = 25

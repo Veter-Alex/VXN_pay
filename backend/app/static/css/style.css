@@ -1,0 +1,157 @@
+:root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #5b8def;
+    --accent-hover: #4a7de0;
+    --error: #f28b82;
+    --border: #2d3142;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+}
+
+.container { max-width: 900px; margin: 0 auto; padding: 0 1.25rem; }
+
+.header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+}
+
+.header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.header nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 1.25rem;
+}
+
+.header nav a:hover { color: var(--text); }
+
+main { flex: 1; padding-bottom: 3rem; }
+
+.footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.hero { text-align: center; padding: 3rem 0; }
+.hero h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+.subtitle { color: var(--muted); margin-bottom: 1.5rem; }
+.lead { max-width: 560px; margin: 0 auto 2rem; color: var(--muted); }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.card.narrow { max-width: 420px; margin: 0 auto; }
+
+h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 1rem; }
+
+.muted { color: var(--muted); }
+.error { color: var(--error); margin-bottom: 1rem; }
+.notice {
+    background: #252836;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 1rem;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+
+.form label {
+    display: block;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.form input {
+    display: block;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.connections { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.connection-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.connection-name { font-weight: 600; margin-bottom: 0.35rem; }
+.connection-meta { display: flex; gap: 1.5rem; color: var(--muted); font-size: 0.9rem; flex-wrap: wrap; }
+
+.tariffs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.tariff-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tariff-card h3 { font-size: 1rem; }
+.price { font-size: 1.5rem; font-weight: 600; }
+
+@media (max-width: 600px) {
+    .connection-meta { flex-direction: column; gap: 0.25rem; }
+}

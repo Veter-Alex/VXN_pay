@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Образовательные материалы{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-inner">
+            <a href="/" class="logo">Учебный проект</a>
+            <nav>
+                {% if user %}
+                    <a href="/cabinet">Личный кабинет</a>
+                    <a href="/logout">Выйти</a>
+                {% else %}
+                    <a href="/login">Войти</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+        <div class="container">© 2026 · Поддержка авторских материалов по программированию</div>
+    </footer>
+</body>
+</html>

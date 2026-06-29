@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение оплаты{% endblock %}
+{% block content %}
+<section class="card narrow">
+    <h1>Тестовая оплата</h1>
+    <p>Тариф: <strong>{{ payment.tariff.name }}</strong></p>
+    <p>Сумма: <strong>{{ "%.0f"|format(payment.amount) }} ₽</strong></p>
+    <p class="muted">Это заглушка вместо страницы ЮKassa. Нажмите кнопку ниже, чтобы симулировать успешную оплату и продлить доступ к материалам.</p>
+    <form method="post" action="/pay/stub/{{ payment.id }}/confirm">
+        <button type="submit" class="btn btn-primary">Подтвердить оплату (тест)</button>
+    </form>
+    <p><a href="/cabinet">← Вернуться в кабинет</a></p>
+</section>
+{% endblock %}

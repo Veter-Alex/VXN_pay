@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Личный кабинет{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>Личный кабинет</h1>
+    <p class="muted">Учётная запись: <strong>{{ user.login }}</strong></p>
+
+    <h2>Ваши подключения</h2>
+    {% if connections %}
+        <div class="connections">
+            {% for conn in connections %}
+            <div class="connection-item">
+                <div class="connection-name">{{ conn.name }}</div>
+                <div class="connection-meta">
+                    <span>Статус: {{ conn.status }}</span>
+                    <span>Активен до: {{ format_expires(conn.expires_at) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">Нет привязанных подключений. Обратитесь к администратору.</p>
+    {% endif %}
+
+    {% if connections %}
+    <h2>Продлить доступ</h2>
+    {% if stub_mode %}
+        <p class="notice">Режим тестовой оплаты (заглушка). Реальная ЮKassa подключится позже.</p>
+    {% endif %}
+    <div class="tariffs">
+        {% for tariff in tariffs %}
+        <form method="post" action="/pay/create" class="tariff-card">
+            <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
+            <h3>{{ tariff.name }}</h3>
+            <p class="price">{{ "%.0f"|format(tariff.price_rub) }} ₽</p>
+            <button type="submit" class="btn btn-primary">Поддержать проект</button>
+        </form>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

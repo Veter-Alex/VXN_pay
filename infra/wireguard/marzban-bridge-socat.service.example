@@ -1,0 +1,16 @@
+# /etc/systemd/system/marzban-bridge.service на VPN-VPS
+# Проброс Marzban API (127.0.0.1:8000) → WireGuard интерфейс (10.10.0.1:8000)
+
+[Unit]
+Description=Marzban API bridge for WireGuard
+After=network.target wg-quick@wg0.service
+Requires=wg-quick@wg0.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:8000,bind=10.10.0.1,fork,reuseaddr TCP:127.0.0.1:8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
