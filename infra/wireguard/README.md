@@ -17,16 +17,16 @@
 
 | Сервер | IP | SSH-ключ |
 |--------|-----|----------|
-| VPN-VPS (VXN Cloud, Marzban) | `132.243.123.55` | `id_ed25519_firstvds_jump1` |
+| VPN-VPS (VXN Cloud, Marzban) | `132.243.123.55` | `id_ed25519_vxn_jump1` |
 | Billing-VPS (VXN_Pay) | `<BILLING_VPS_IP>` | `id_ed25519_tipmycode_wmrs_vps` |
 
 Приватные ключи не коммитить в git.
 
 ```powershell
 # VPN-VPS
-ssh -i $env:USERPROFILE\.ssh\id_ed25519_firstvds_jump1 root@132.243.123.55
+ssh -i $env:USERPROFILE\.ssh\id_ed25519_vxn_jump1 root@132.243.123.55
 # или alias из ~/.ssh/config:
-ssh firstvds-jump1
+ssh vxn-jump1
 
 # Billing-VPS (когда будет развёрнут)
 ssh -i $env:USERPROFILE\.ssh\id_ed25519_tipmycode_wmrs_vps root@<BILLING_VPS_IP>
@@ -38,7 +38,7 @@ ssh -i $env:USERPROFILE\.ssh\id_ed25519_tipmycode_wmrs_vps root@<BILLING_VPS_IP>
 Host vxn-vpn
     HostName 132.243.123.55
     User root
-    IdentityFile ~/.ssh/id_ed25519_firstvds_jump1
+    IdentityFile ~/.ssh/id_ed25519_vxn_jump1
 
 Host vxn-billing
     HostName <BILLING_VPS_IP>
@@ -52,9 +52,9 @@ Host vxn-billing
 
 ```powershell
 # Терминал 1 — туннель к VPN-VPS (оставить открытым)
-# Ключ firstvds_jump1 — VPN-сервер, не tipmycode!
-ssh -i $env:USERPROFILE\.ssh\id_ed25519_firstvds_jump1 -N -L 18000:127.0.0.1:8000 root@132.243.123.55
-# или: ssh -N -L 18000:127.0.0.1:8000 firstvds-jump1
+# Ключ vxn_jump1 — VPN-сервер, не tipmycode!
+ssh -i $env:USERPROFILE\.ssh\id_ed25519_vxn_jump1 -N -L 18000:127.0.0.1:8000 root@132.243.123.55
+# или: ssh -N -L 18000:127.0.0.1:8000 vxn-jump1
 ```
 
 В `.env` для Docker на Windows:
