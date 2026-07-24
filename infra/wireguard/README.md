@@ -100,6 +100,23 @@ ping -c 3 10.10.0.1
 curl -s http://10.10.0.1:8000/api/admin/token  # должен ответить 422/405, не timeout
 ```
 
+## Локальная разработка (без WireGuard)
+
+Пока billing-VPS не развёрнут, API в Docker ходит к Marzban через SSH-туннель на хосте:
+
+```powershell
+# Проброс локального 18000 → Marzban на VPN-VPS (127.0.0.1:8000)
+ssh -N -L 18000:127.0.0.1:8000 firstvds-jump1
+```
+
+В `.env` контейнера:
+
+```env
+MARZBAN_BASE_URL=http://host.docker.internal:18000
+```
+
+В `docker-compose.yml` уже есть `extra_hosts: host.docker.internal:host-gateway`.
+
 ## Проброс Marzban API на wg0 (VPN-VPS)
 
 Marzban слушает `127.0.0.1:8000`. Нужен проброс только на интерфейс WireGuard.
