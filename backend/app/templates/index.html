@@ -3,74 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TipMyCode — Поддержка образовательного проекта</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <title>tip My Code</title>
     <link rel="stylesheet" href="/static/css/landing.css">
 </head>
 <body class="landing-page">
-    <div class="bg-decoration bg-1"></div>
-    <div class="bg-decoration bg-2"></div>
-    <div class="bg-decoration bg-3"></div>
-
     <div class="landing-container">
-        <div class="logo-wrapper">
-            <div class="logo-curved" aria-label="TipMyCode">
-                <span class="logo-letter">T</span>
-                <span class="logo-letter">i</span>
-                <span class="logo-letter">p</span>
-                <span class="logo-letter">M</span>
-                <span class="logo-letter">y</span>
-                <span class="logo-letter">C</span>
-                <span class="logo-letter">o</span>
-                <span class="logo-letter">d</span>
-                <span class="logo-letter">e</span>
-            </div>
-        </div>
+        <h1 class="brand-title">tip My Code</h1>
+        <p class="brand-subtitle">Личный кабинет</p>
 
         <div class="landing-card" id="login">
             <h2 class="card-title">Вход</h2>
 
-            {% if user %}
-            <p class="logged-in-badge">Добро пожаловать, {{ user.login }}!</p>
-            <a href="/cabinet" class="landing-btn btn-login">Открыть кабинет</a>
-            <div class="forgot-password">
-                <a href="/logout">Выйти</a>
-            </div>
-            {% else %}
             {% if login_error %}
-            <div class="login-error">{{ login_error }}</div>
+            <div class="alert alert-error">{{ login_error }}</div>
             {% endif %}
 
-            <form method="post" action="/login">
-                <div class="form-group">
-                    <label for="username">Логин</label>
-                    <input
-                        type="text"
-                        id="username"
-                        name="login"
-                        placeholder="Введите логин"
-                        required
-                        autocomplete="username"
-                        value="{{ login_value or '' }}"
-                    >
-                </div>
-                <div class="form-group">
-                    <label for="password">Пароль</label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Введите пароль"
-                        required
-                        autocomplete="current-password"
-                    >
-                </div>
-                <button type="submit" class="landing-btn btn-login">Войти</button>
-                <div class="forgot-password">
-                    <a href="/forgot-password">Забыли пароль?</a>
-                </div>
+            <form method="post" action="/login" class="form">
+                <label>
+                    Логин
+                    <input type="text" name="login" required autocomplete="username" value="{{ login_value or '' }}">
+                </label>
+                <label>
+                    Пароль
+                    <input type="password" name="password" required autocomplete="current-password">
+                </label>
+                <button type="submit" class="btn btn-primary">Войти</button>
             </form>
-            {% endif %}
+            <p class="form-footer">
+                <a href="/forgot-password">Забыли логин или пароль?</a>
+            </p>
         </div>
     </div>
 </body>

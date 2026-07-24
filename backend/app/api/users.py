@@ -25,6 +25,9 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserMeRespon
         email=current_user.email,
         phone=current_user.phone,
         role=current_user.role,
+        tariff_category=current_user.tariff_category,
+        email_verified_at=current_user.email_verified_at,
+        password_set=current_user.password_set,
         connections=[build_connection_info(link) for link in current_user.account_links],
         created_at=current_user.created_at,
     )
@@ -45,9 +48,11 @@ async def update_me(
         if not verify_password(body.old_password, current_user.password_hash):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль")
         current_user.password_hash = hash_password(body.new_password)
+        current_user.password_set = True
 
     if body.email is not None:
         current_user.email = body.email
+        current_user.email_verified_at = None
 
     if body.phone is not None:
         current_user.phone = body.phone
@@ -61,6 +66,9 @@ async def update_me(
         email=current_user.email,
         phone=current_user.phone,
         role=current_user.role,
+        tariff_category=current_user.tariff_category,
+        email_verified_at=current_user.email_verified_at,
+        password_set=current_user.password_set,
         connections=[build_connection_info(link) for link in current_user.account_links],
         created_at=current_user.created_at,
     )
@@ -69,39 +77,29 @@ async def update_me(
 @router.post("", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: UserCreateRequest,
-    _: User = Depends(require_admin),
+    actor: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> UserCreateResponse:
-    existing_login = await db.execute(select(User).where(User.login == body.login))
-    if existing_login.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Логин уже занят")
+    from app.services.accounts import AccountError, create_vpn_account
 
-    for username in body.account_usernames:
-        existing_link = await db.execute(
-            select(UserAccountLink).where(UserAccountLink.account_username == username)
+    try:
+        user, _ = await create_vpn_account(
+            db,
+            actor=actor,
+            username=body.login,
+            email=body.email,
+            tariff_category=body.tariff_category,
+            comments=body.comments,
+            role=body.role,
+            send_invite=False,
         )
-        if existing_link.scalar_one_or_none() is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Учётная запись '{username}' уже привязана",
-            )
-
-    user = User(
-        login=body.login,
-        password_hash=hash_password(body.password),
-        email=body.email,
-        phone=body.phone,
-        role=body.role,
-        comments=body.comments,
-    )
-    db.add(user)
-    await db.flush()
-
-    for username in body.account_usernames:
-        db.add(UserAccountLink(user_id=user.id, account_username=username))
-
-    await db.flush()
-    await db.refresh(user)
+        if body.password:
+            user.password_hash = hash_password(body.password)
+            user.password_set = True
+        await db.commit()
+        await db.refresh(user)
+    except AccountError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return UserCreateResponse(
         id=user.id,
@@ -109,6 +107,7 @@ async def create_user(
         email=user.email,
         phone=user.phone,
         role=user.role,
+        tariff_category=user.tariff_category,
         account_usernames=[link.account_username for link in user.account_links],
         comments=user.comments,
         created_at=user.created_at,

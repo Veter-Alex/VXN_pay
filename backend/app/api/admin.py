@@ -102,6 +102,22 @@ async def sync_connections(
     return SyncAllResponse(**result)
 
 
+@router.post("/import-marzban")
+async def import_marzban_users(
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Импорт VPN-пользователей из Marzban в VXN_Pay."""
+    from app.services.accounts import AccountError, import_users_from_marzban
+
+    try:
+        stats = await import_users_from_marzban(db, actor=actor)
+        await db.commit()
+    except AccountError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return stats
+
+
 @router.get("/jobs", response_model=list[MarzbanJobResponse])
 async def list_jobs(
     _: User = Depends(require_admin),

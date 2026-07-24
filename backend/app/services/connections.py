@@ -20,6 +20,15 @@ def apply_panel_user_to_link(link: UserAccountLink, panel_user: dict[str, Any]) 
     link.data_limit_cache = panel_user.get("data_limit")
     link.data_used_cache = panel_user.get("used_traffic")
     link.last_synced_at = datetime.now(UTC)
+    sub_url = panel_user.get("subscription_url")
+    if not sub_url:
+        links = panel_user.get("links") or panel_user.get("subscription_links")
+        if isinstance(links, list) and links:
+            sub_url = links[0]
+        elif isinstance(links, str):
+            sub_url = links
+    if sub_url:
+        link.subscription_url_cache = sub_url
 
 
 def build_connection_info(link: UserAccountLink) -> ConnectionInfo:
@@ -30,6 +39,7 @@ def build_connection_info(link: UserAccountLink) -> ConnectionInfo:
         expires_at=link.expires_at_cache,
         data_limit_bytes=link.data_limit_cache,
         data_used_bytes=link.data_used_cache,
+        subscription_url=link.subscription_url_cache,
     )
 
 

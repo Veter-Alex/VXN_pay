@@ -47,8 +47,11 @@ class Settings(BaseSettings):
     marzban_base_url: str = "http://10.10.0.1:8000"
     marzban_admin_user: str = "admin"
     marzban_admin_password: str = ""
+    marzban_inbound_tag: str = "VLESS TCP REALITY"
     marzban_token_cache_minutes: int = 55
     marzban_request_timeout_seconds: float = 30.0
+    # TTL кэша при открытии ЛК: не ходить в Marzban, если sync свежее (сек). 0 = не синкать при открытии.
+    marzban_cabinet_sync_ttl_seconds: int = 300
 
     marzban_job_poll_interval_seconds: int = 60
     marzban_job_max_attempts: int = 10

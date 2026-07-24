@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Приглашение — tip My Code{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <header class="auth-card__header">
+        <p class="auth-card__eyebrow">tip My Code</p>
+        {% if message %}
+        <h1 class="auth-card__title">Готово</h1>
+        <p class="auth-card__lead muted">Учётная запись настроена. Можно войти в кабинет.</p>
+        {% elif error_kind == 'used' %}
+        <h1 class="auth-card__title">Ссылка уже использована</h1>
+        <p class="auth-card__lead muted">Повторная установка пароля по этой ссылке недоступна.</p>
+        {% elif error %}
+        <h1 class="auth-card__title">Ссылка недоступна</h1>
+        <p class="auth-card__lead muted">Открыть форму приглашения не удалось.</p>
+        {% else %}
+        <h1 class="auth-card__title">Добро пожаловать</h1>
+        <p class="auth-card__lead muted">Задайте пароль и почту для входа в кабинет.</p>
+        {% endif %}
+    </header>
+
+    {% if message %}
+    <div class="alert alert-success">{{ message }}</div>
+    <p class="auth-card__done">
+        <a href="/#login" class="btn btn-primary">Войти</a>
+    </p>
+    {% elif error_kind == 'used' %}
+    <div class="auth-notice">
+        <p class="auth-notice__text">{{ error }}</p>
+        <p class="auth-notice__hint muted">Если забыли пароль, восстановите доступ с главной страницы. Новую ссылку-приглашение может выдать администратор или менеджер.</p>
+    </div>
+    <div class="auth-card__actions">
+        <a href="/#login" class="btn btn-primary">Войти</a>
+        <a href="/forgot-password" class="btn">Восстановить пароль</a>
+    </div>
+    {% elif error %}
+    <div class="alert alert-error">{{ error }}</div>
+    <p class="muted auth-card__hint">Запросите новую ссылку у администратора или менеджера.</p>
+    <p class="auth-card__done">
+        <a href="/" class="btn">На главную</a>
+    </p>
+    {% elif token %}
+    <div class="auth-login-box">
+        <span class="auth-login-box__label">Ваш логин</span>
+        <span class="auth-login-box__value">{{ invite_login }}</span>
+    </div>
+
+    <form method="post" action="/invite/{{ token }}" class="form auth-form">
+        <label class="auth-field">
+            <span class="auth-field__label">Задайте пароль</span>
+            <input type="password" name="new_password" required minlength="8" autocomplete="new-password" placeholder="Не менее 8 символов">
+        </label>
+
+        <label class="auth-field">
+            <span class="auth-field__label">Подтвердите пароль</span>
+            <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password" placeholder="Повторите пароль">
+        </label>
+
+        <label class="auth-field">
+            <span class="auth-field__label">Задайте почту для восстановления</span>
+            <input type="email" name="email" required value="{{ invite_email or '' }}" autocomplete="email" placeholder="name@example.com">
+            <span class="auth-field__hint muted">Нужна для восстановления доступа, если забудете пароль.</span>
+        </label>
+
+        <button type="submit" class="btn btn-primary auth-form__submit">Сохранить и продолжить</button>
+    </form>
+    {% endif %}
+
+    <p class="form-footer"><a href="/">← На главную</a></p>
+</section>
+{% endblock %}

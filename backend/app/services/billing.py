@@ -11,7 +11,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.payment import Payment, PaymentStatus
 from app.models.tariff import Tariff
-from app.models.user import User
+from app.models.user import TariffCategory, User
+from app.services.acl import can_manage_user
 from app.services.marzban_jobs import extend_with_fallback
 from app.services.yukassa import yukassa_service
 
@@ -22,25 +23,56 @@ class BillingError(Exception):
     pass
 
 
-async def get_tariff(db: AsyncSession, tariff_id: int) -> Tariff:
-    result = await db.execute(select(Tariff).where(Tariff.id == tariff_id, Tariff.is_active.is_(True)))
+async def get_tariff(db: AsyncSession, tariff_id: int, category: TariffCategory) -> Tariff:
+    """Возвращает активный тариф, соответствующий категории пользователя."""
+    result = await db.execute(
+        select(Tariff).where(
+            Tariff.id == tariff_id,
+            Tariff.is_active.is_(True),
+            Tariff.category == category,
+        )
+    )
     tariff = result.scalar_one_or_none()
     if tariff is None:
-        raise BillingError("Тариф не найден или неактивен")
+        raise BillingError("Тариф не найден, неактивен или не подходит категории")
     return tariff
 
 
-async def create_payment_for_user(db: AsyncSession, user: User, tariff_id: int) -> tuple[Payment, str]:
+async def create_payment_for_user(
+    db: AsyncSession,
+    payer: User,
+    tariff_id: int,
+    *,
+    target_user_id: UUID | None = None,
+) -> tuple[Payment, str]:
+    """
+    Создаёт платёж и redirect на ЮKassa.
+
+    target_user_id — чей VPN продлевается (по умолчанию сам payer).
+    """
     from app.config import get_settings
 
     settings = get_settings()
-    tariff = await get_tariff(db, tariff_id)
 
-    if not user.account_links:
+    beneficiary_id = target_user_id or payer.id
+    if beneficiary_id != payer.id:
+        target_result = await db.execute(select(User).where(User.id == beneficiary_id))
+        target_user = target_result.scalar_one_or_none()
+        if target_user is None:
+            raise BillingError("Целевой пользователь не найден")
+        if not await can_manage_user(db, payer, target_user):
+            raise BillingError("Недостаточно прав для оплаты за этого пользователя")
+        beneficiary = target_user
+    else:
+        beneficiary = payer
+
+    tariff = await get_tariff(db, tariff_id, beneficiary.tariff_category)
+
+    if not beneficiary.account_links:
         raise BillingError("Нет привязанных учётных записей для продления")
 
     payment = Payment(
-        user_id=user.id,
+        user_id=beneficiary.id,
         tariff_id=tariff.id,
         amount=tariff.price_rub,
         status=PaymentStatus.pending,
@@ -53,7 +85,7 @@ async def create_payment_for_user(db: AsyncSession, user: User, tariff_id: int) 
         payment_id=payment.id,
         amount=tariff.price_rub,
         description=settings.payment_description,
-        user_id=user.id,
+        user_id=beneficiary.id,
         tariff_id=tariff.id,
     )
 

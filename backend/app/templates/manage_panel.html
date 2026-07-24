@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — tip My Code{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h1>{{ page_title }}</h1>
+        <p class="muted">Учётная запись: <strong>{{ user.login }}</strong></p>
+    </div>
+
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+    {% if is_admin %}
+    <div class="panel-toolbar">
+        <form method="post" action="/admin/import-marzban" class="inline-form" onsubmit="return confirm('Импортировать всех пользователей из Marzban?')">
+            <button type="submit" class="btn">Синхронизировать из Marzban</button>
+        </form>
+        <span class="muted">Подтянет VPN-пользователей VXN, которых ещё нет на сайте</span>
+    </div>
+
+    <details class="panel-block">
+        <summary>Добавить пользователя</summary>
+        <form method="post" action="/admin/create" class="form form-grid form-grid--create">
+            <label>
+                <span class="form-grid__label">Логин</span>
+                <input
+                    type="text"
+                    name="username"
+                    required
+                    minlength="3"
+                    maxlength="32"
+                    pattern="[a-zA-Z0-9]([a-zA-Z0-9_]{0,30}[a-zA-Z0-9])?"
+                    title="3–32 символа: латиница, цифры, подчёркивание не в начале/конце"
+                    placeholder="например user_01"
+                    autocomplete="off"
+                >
+            </label>
+            <label>
+                <span class="form-grid__label">Категория</span>
+                <select name="tariff_category">
+                    <option value="commercial">Коммерческая</option>
+                    <option value="preferential">Льготная</option>
+                </select>
+            </label>
+            <label>
+                <span class="form-grid__label">Примечание</span>
+                <input type="text" name="comments" placeholder="Необязательно">
+            </label>
+            <div class="form-grid__action">
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+        <p class="muted form-grid-hint">Логин: 3–32 символа, a–z, цифры, _ внутри. Почту пользователь укажет по приглашению.</p>
+    </details>
+
+    {% if manager_candidates %}
+    <details class="panel-block manager-panel">
+        <summary>Назначить менеджера</summary>
+        <p class="manager-panel__hint muted">Выберите менеджера и отметьте подопечных, которыми он будет управлять.</p>
+
+        {% if managers %}
+        <div class="manager-current">
+            <h3 class="manager-current__title">Текущие менеджеры</h3>
+            <ul class="manager-current__list">
+                {% for m in managers %}
+                <li class="manager-current__item">
+                    <span class="manager-current__name">{{ m.login }}</span>
+                    <span class="manager-current__count muted">
+                        {% set wards = manager_assignments.get(m.id|string, []) %}
+                        {% if wards %}{{ wards|length }} подопечн.{% else %}без подопечных{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/admin/manager" class="manager-form" id="manager-assign-form">
+            <div class="manager-form__row">
+                <label class="manager-form__field">
+                    <span class="manager-form__label">Менеджер</span>
+                    <select name="manager_id" id="manager-select" class="field-input" required>
+                        <option value="">— Выберите пользователя —</option>
+                        {% for candidate in manager_candidates %}
+                        <option
+                            value="{{ candidate.id }}"
+                            data-is-manager="{{ '1' if candidate.role.value == 'manager' else '0' }}"
+                            data-wards="{{ manager_assignments.get(candidate.id|string, []) | join(',') }}"
+                        >{{ candidate.login }}{% if candidate.role.value == 'manager' %} (менеджер){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="manager-form__field manager-form__search">
+                    <span class="manager-form__label">Поиск подопечных</span>
+                    <input type="search" id="ward-search" class="field-input" placeholder="Фильтр по логину…" autocomplete="off">
+                </label>
+            </div>
+
+            <div class="manager-form__wards">
+                <div class="manager-form__wards-head">
+                    <span class="manager-form__label">Подопечные</span>
+                    <span class="manager-form__selected muted" id="ward-selected-count">Выбрано: 0</span>
+                </div>
+                <div class="manager-wards" id="manager-wards">
+                    {% for u in assignable_users %}
+                    <label class="manager-ward" data-login="{{ u.login|lower }}">
+                        <input type="checkbox" name="managed_ids" value="{{ u.id }}">
+                        <span class="manager-ward__name">{{ u.login }}</span>
+                    </label>
+                    {% else %}
+                    <p class="muted">Нет пользователей для назначения</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="manager-form__actions">
+                <button type="submit" class="btn btn-primary" id="manager-submit" disabled>Сохранить назначения</button>
+                <button type="button" class="btn btn-sm" id="ward-select-all">Выбрать всех</button>
+                <button type="button" class="btn btn-sm" id="ward-clear-all">Снять все</button>
+            </div>
+        </form>
+    </details>
+    {% endif %}
+    {% else %}
+    <form method="post" action="/admin/create" class="form form-grid form-grid--create panel-block">
+        <label>
+            <span class="form-grid__label">Логин</span>
+            <input
+                type="text"
+                name="username"
+                required
+                minlength="3"
+                maxlength="32"
+                pattern="[a-zA-Z0-9]([a-zA-Z0-9_]{0,30}[a-zA-Z0-9])?"
+                title="3–32 символа: латиница, цифры, подчёркивание не в начале/конце"
+                placeholder="например user_01"
+                autocomplete="off"
+            >
+        </label>
+        <label>
+            <span class="form-grid__label">Категория</span>
+            <select name="tariff_category">
+                <option value="commercial">Коммерческая</option>
+                <option value="preferential">Льготная</option>
+            </select>
+        </label>
+        <label>
+            <span class="form-grid__label">Примечание</span>
+            <input type="text" name="comments" placeholder="Необязательно">
+        </label>
+        <div class="form-grid__action">
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </div>
+        <p class="muted form-grid-hint form-grid-hint--full">Логин: 3–32 символа, a–z, цифры, _ внутри. Почту пользователь укажет по приглашению.</p>
+    </form>
+    {% endif %}
+
+    <div class="accounts-toolbar">
+        <label class="accounts-toolbar__search">
+            <span class="accounts-toolbar__label">Логин</span>
+            <input type="search" id="login-filter" class="field-input" placeholder="Поиск по логину…" autocomplete="off">
+        </label>
+        <span class="accounts-toolbar__count muted" id="login-filter-count"></span>
+    </div>
+
+    <div class="accounts-scroll">
+        <div class="accounts-grid{% if is_admin %} accounts-grid--admin{% else %} accounts-grid--manager{% endif %}" id="accounts-grid">
+            <div class="accounts-grid__head">
+                <span>Логин</span>
+                <span>Пароль</span>
+                <span>Истекает</span>
+                <span>Примечание</span>
+                <span>Почта</span>
+                {% if is_admin %}<span>Категория</span>{% endif %}
+                <span>Статус</span>
+                <span>Ссылка</span>
+                {% if not is_admin %}<span>Оплата</span>{% endif %}
+                <span>Управление</span>
+            </div>
+
+            {% for row in rows %}
+            {% set cat = row.user.tariff_category.value %}
+            {% set row_tariffs = tariffs_by_category[cat] %}
+            {% set pay_id = "pay-" ~ row.user.id %}
+            {% set delete_id = "delete-" ~ row.user.id %}
+            {% set clear_pwd_id = "clear-pwd-" ~ row.user.id %}
+
+            <form method="post" action="/admin/save/{{ row.user.id }}" class="accounts-grid__row" data-login="{{ row.user.login|lower }}">
+                {# Логин — полностью, без обрезки #}
+                <span class="cell-login" title="{{ row.username }}">{{ row.user.login }}</span>
+
+                {# Пароль: статус + сброс (чтобы снова задать по invite) #}
+                <div class="cell-password">
+                    {% if row.user.password_set %}
+                    <span class="status-icon status-icon--ok" title="Пароль задан">✓</span>
+                    <button
+                        type="submit"
+                        form="{{ clear_pwd_id }}"
+                        class="icon-btn icon-btn--danger icon-btn--xs"
+                        title="Удалить пароль"
+                        aria-label="Удалить пароль"
+                        onclick="return confirm('Сбросить пароль пользователя {{ row.user.login }}? После этого скопируйте новое приглашение.')"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                        </svg>
+                    </button>
+                    {% else %}
+                    <span class="status-icon status-icon--bad" title="Пароль не задан">✕</span>
+                    {% endif %}
+                </div>
+
+                <input type="date" name="expire_date" value="{{ format_expires_input(row.expires_at) }}" class="field-input field-date" title="Дата истечения">
+
+                <span class="tooltip-host">
+                    <input type="text" name="comments" value="{{ row.user.comments or '' }}" class="field-input">
+                    {% if row.user.comments %}
+                    <span class="tooltip-popup" role="tooltip">{{ row.user.comments }}</span>
+                    {% endif %}
+                </span>
+
+                <div class="cell-email tooltip-host">
+                    <div class="cell-email__row">
+                        <input type="email" name="email" value="{{ row.user.email or '' }}" class="field-input" placeholder="Не задана">
+                        {% if row.user.email %}
+                            {% if row.user.email_verified_at %}
+                            <span class="email-badge email-badge--ok" title="Подтверждена">✓</span>
+                            {% else %}
+                            <span class="email-badge email-badge--warn" title="Не подтверждена">?</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="email-badge email-badge--warn" title="Почта не задана">—</span>
+                        {% endif %}
+                    </div>
+                    {% if row.user.email %}
+                    <span class="tooltip-popup" role="tooltip">{{ row.user.email }}</span>
+                    {% endif %}
+                </div>
+
+                {% if is_admin %}
+                <span class="tooltip-host cell-category">
+                    <select name="tariff_category" class="field-input field-category" data-category-select>
+                        <option value="preferential" {% if cat == 'preferential' %}selected{% endif %}>👥</option>
+                        <option value="commercial" {% if cat == 'commercial' %}selected{% endif %}>$</option>
+                    </select>
+                    <span class="tooltip-popup" role="tooltip" data-category-tip>
+                        {% if cat == 'preferential' %}Льготная{% else %}Коммерческая{% endif %}
+                    </span>
+                </span>
+                {% endif %}
+
+                <label class="cell-status tooltip-host">
+                    <input type="checkbox" name="marzban_active" value="1" {% if row.is_marzban_active %}checked{% endif %} data-status-check>
+                    <input type="hidden" name="is_active" value="1">
+                    {% if not is_admin %}<input type="hidden" name="tariff_category" value="{{ cat }}">{% endif %}
+                    <span class="tooltip-popup" role="tooltip" data-status-tip>
+                        {% if row.is_marzban_active %}Аккаунт активен{% else %}Аккаунт не активен{% endif %}
+                    </span>
+                </label>
+
+                <div class="cell-link">
+                    {% set url = row.subscription_url %}
+                    {% include "partials/copy_link.html" %}
+                </div>
+
+                {% if not is_admin %}
+                <div class="cell-pay">
+                    <select name="tariff_id" form="{{ pay_id }}" class="field-input field-pay" title="Тариф">
+                        {% for t in row_tariffs %}
+                        <option value="{{ t.id }}">{{ "%.0f"|format(t.price_rub) }} ₽</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" form="{{ pay_id }}" class="icon-btn icon-btn--primary" title="Перевести" aria-label="Перевести">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </button>
+                </div>
+                {% endif %}
+
+                <div class="cell-actions">
+                    <input type="password" name="new_password" placeholder="Новый пароль" class="field-input field-password" autocomplete="new-password">
+
+                    <button type="submit" class="icon-btn icon-btn--primary" title="Сохранить изменения" aria-label="Сохранить изменения">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </button>
+
+                    <button type="button" class="icon-btn" data-invite-user="{{ row.user.id }}" title="Скопировать ссылку приглашение" aria-label="Скопировать ссылку приглашение">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                    </button>
+
+                    <button type="submit" form="{{ delete_id }}" class="icon-btn icon-btn--danger" title="Удалить" aria-label="Удалить" onclick="return confirm('Удалить пользователя {{ row.username }}?')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+
+            {% if not is_admin %}
+            <form id="{{ pay_id }}" method="post" action="/pay/create" class="hidden-form" hidden>
+                <input type="hidden" name="target_user_id" value="{{ row.user.id }}">
+            </form>
+            {% endif %}
+            <form id="{{ delete_id }}" method="post" action="/admin/delete/{{ row.user.id }}" class="hidden-form" hidden></form>
+            <form id="{{ clear_pwd_id }}" method="post" action="/admin/clear-password/{{ row.user.id }}" class="hidden-form" hidden></form>
+            {% else %}
+            <div class="accounts-grid__empty muted">Нет записей</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% include "partials/apps_block.html" %}
+</section>
+
+<script>
+(function () {
+    var CATEGORY_LABELS = {
+        preferential: "Льготная",
+        commercial: "Коммерческая"
+    };
+
+    function flashCopied(el) {
+        var prev = el.getAttribute("data-title-prev");
+        if (!prev) {
+            el.setAttribute("data-title-prev", el.getAttribute("title") || "");
+        }
+        el.setAttribute("title", "Скопировано");
+        el.classList.add("icon-btn--ok");
+        setTimeout(function () {
+            el.setAttribute("title", el.getAttribute("data-title-prev") || "");
+            el.classList.remove("icon-btn--ok");
+        }, 1500);
+    }
+
+    document.querySelectorAll("[data-copy-url]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var url = btn.getAttribute("data-copy-url");
+            if (!url) return;
+            navigator.clipboard.writeText(url).then(function () {
+                flashCopied(btn);
+            });
+        });
+    });
+
+    document.querySelectorAll("[data-invite-user]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var userId = btn.getAttribute("data-invite-user");
+            if (!userId || btn.disabled) return;
+            btn.disabled = true;
+            fetch("/admin/invite/" + userId, {
+                method: "POST",
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin"
+            })
+                .then(function (res) {
+                    return res.json().then(function (data) {
+                        if (!res.ok) throw new Error(data.error || "Ошибка");
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    if (!data.invite_url) throw new Error("Нет ссылки");
+                    return navigator.clipboard.writeText(data.invite_url);
+                })
+                .then(function () {
+                    flashCopied(btn);
+                })
+                .catch(function (err) {
+                    alert(err.message || "Не удалось скопировать приглашение");
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                });
+        });
+    });
+
+    document.querySelectorAll("[data-category-select]").forEach(function (sel) {
+        sel.addEventListener("change", function () {
+            var tip = sel.parentElement.querySelector("[data-category-tip]");
+            if (tip) tip.textContent = CATEGORY_LABELS[sel.value] || sel.value;
+        });
+    });
+
+    document.querySelectorAll("[data-status-check]").forEach(function (chk) {
+        chk.addEventListener("change", function () {
+            var tip = chk.parentElement.querySelector("[data-status-tip]");
+            if (tip) {
+                tip.textContent = chk.checked ? "Аккаунт активен" : "Аккаунт не активен";
+            }
+        });
+    });
+
+    // Форма назначения менеджера: выбор, фильтр, предзаполнение подопечных
+    (function initManagerForm() {
+        var form = document.getElementById("manager-assign-form");
+        var select = document.getElementById("manager-select");
+        var search = document.getElementById("ward-search");
+        var wardsBox = document.getElementById("manager-wards");
+        var countEl = document.getElementById("ward-selected-count");
+        var submitBtn = document.getElementById("manager-submit");
+        if (!form || !select || !wardsBox) return;
+
+        var wardLabels = Array.prototype.slice.call(wardsBox.querySelectorAll(".manager-ward"));
+
+        function updateCount() {
+            var n = wardsBox.querySelectorAll(".manager-ward:not(.is-hidden) input:checked").length;
+            var totalChecked = wardsBox.querySelectorAll("input:checked").length;
+            if (countEl) countEl.textContent = "Выбрано: " + totalChecked;
+            if (submitBtn) submitBtn.disabled = !select.value;
+        }
+
+        function applyFilter() {
+            var q = (search && search.value || "").trim().toLowerCase();
+            var managerId = select.value;
+            wardLabels.forEach(function (label) {
+                var login = label.getAttribute("data-login") || "";
+                var input = label.querySelector("input");
+                var isSelf = input && input.value === managerId;
+                var match = !q || login.indexOf(q) !== -1;
+                label.classList.toggle("is-hidden", isSelf || !match);
+                if (isSelf && input) input.checked = false;
+            });
+            updateCount();
+        }
+
+        function applyManagerSelection() {
+            var opt = select.options[select.selectedIndex];
+            var wards = (opt && opt.getAttribute("data-wards") || "").split(",").filter(Boolean);
+            var wardSet = {};
+            wards.forEach(function (id) { wardSet[id] = true; });
+            wardLabels.forEach(function (label) {
+                var input = label.querySelector("input");
+                if (!input) return;
+                input.checked = !!wardSet[input.value];
+            });
+            applyFilter();
+        }
+
+        select.addEventListener("change", applyManagerSelection);
+        if (search) search.addEventListener("input", applyFilter);
+        wardsBox.addEventListener("change", updateCount);
+
+        var selectAll = document.getElementById("ward-select-all");
+        var clearAll = document.getElementById("ward-clear-all");
+        if (selectAll) {
+            selectAll.addEventListener("click", function () {
+                wardLabels.forEach(function (label) {
+                    if (label.classList.contains("is-hidden")) return;
+                    var input = label.querySelector("input");
+                    if (input) input.checked = true;
+                });
+                updateCount();
+            });
+        }
+        if (clearAll) {
+            clearAll.addEventListener("click", function () {
+                wardLabels.forEach(function (label) {
+                    var input = label.querySelector("input");
+                    if (input) input.checked = false;
+                });
+                updateCount();
+            });
+        }
+
+        updateCount();
+    })();
+    // Фильтр строк таблицы по логину
+    (function initLoginFilter() {
+        var input = document.getElementById("login-filter");
+        var countEl = document.getElementById("login-filter-count");
+        var grid = document.getElementById("accounts-grid");
+        if (!input || !grid) return;
+
+        var rows = Array.prototype.slice.call(grid.querySelectorAll(".accounts-grid__row[data-login]"));
+
+        function apply() {
+            var q = (input.value || "").trim().toLowerCase();
+            var visible = 0;
+            rows.forEach(function (row) {
+                var login = row.getAttribute("data-login") || "";
+                var show = !q || login.indexOf(q) !== -1;
+                row.classList.toggle("is-filtered-out", !show);
+                if (show) visible += 1;
+            });
+            if (countEl) {
+                countEl.textContent = q
+                    ? ("Найдено: " + visible + " из " + rows.length)
+                    : ("Всего: " + rows.length);
+            }
+        }
+
+        input.addEventListener("input", apply);
+        apply();
+    })();
+})();
+</script>
+{% endblock %}

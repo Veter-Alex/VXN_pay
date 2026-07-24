@@ -39,8 +39,9 @@ async def bootstrap_admin() -> None:
         admin = User(
             login=settings.bootstrap_admin_login,
             password_hash=hash_password(settings.bootstrap_admin_password),
-            email=settings.bootstrap_admin_email or f"{settings.bootstrap_admin_login}@localhost",
+            email=(settings.bootstrap_admin_email or "").strip() or None,
             role=UserRole.admin,
+            password_set=True,
         )
         session.add(admin)
         await session.commit()

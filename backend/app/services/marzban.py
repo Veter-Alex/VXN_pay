@@ -12,12 +12,16 @@ settings = get_settings()
 
 
 class MarzbanError(Exception):
+    """Ошибка при обращении к Marzban API."""
+
     def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
 
 class MarzbanClient:
+    """HTTP-клиент Marzban с кэшем admin JWT."""
+
     def __init__(self) -> None:
         self._token: str | None = None
         self._token_expires_at: datetime | None = None
@@ -97,8 +101,53 @@ class MarzbanClient:
     async def get_user(self, username: str) -> dict[str, Any]:
         return await self._request("GET", f"/api/user/{username}")
 
+    async def list_users_page(self, *, offset: int = 0, limit: int = 100) -> dict[str, Any]:
+        """Возвращает одну страницу списка VPN-пользователей Marzban."""
+        return await self._request("GET", f"/api/users?offset={offset}&limit={limit}")
+
+    async def list_all_users(self) -> list[dict[str, Any]]:
+        """Загружает всех VPN-пользователей Marzban (с пагинацией)."""
+        users: list[dict[str, Any]] = []
+        offset = 0
+        limit = 100
+        while True:
+            page = await self.list_users_page(offset=offset, limit=limit)
+            batch = page.get("users") or []
+            users.extend(batch)
+            total = int(page.get("total") or len(users))
+            offset += limit
+            if offset >= total or not batch:
+                break
+        return users
+
+    async def create_user(
+        self,
+        username: str,
+        *,
+        expire: int = 0,
+        status: str = "active",
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        """Создаёт VPN-пользователя в Marzban с inbound из конфигурации."""
+        inbound_tag = settings.marzban_inbound_tag
+        payload: dict[str, Any] = {
+            "username": username,
+            "proxies": {"vless": {"flow": ""}},
+            "inbounds": {"vless": [inbound_tag]},
+            "expire": expire,
+            "data_limit": 0,
+            "data_limit_reset_strategy": "no_reset",
+            "status": status,
+        }
+        if note:
+            payload["note"] = note
+        return await self._request("POST", "/api/user", json=payload)
+
     async def modify_user(self, username: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._request("PUT", f"/api/user/{username}", json=payload)
+
+    async def delete_user(self, username: str) -> None:
+        await self._request("DELETE", f"/api/user/{username}")
 
     async def extend_expire(self, username: str, period_days: int) -> int:
         user = await self.get_user(username)
@@ -110,6 +159,17 @@ class MarzbanClient:
         await self.modify_user(username, {"expire": new_expire, "status": "active"})
         logger.info("Extended %s until %s", username, new_expire)
         return new_expire
+
+    def extract_subscription_url(self, panel_user: dict[str, Any]) -> str | None:
+        """Извлекает subscription URL из ответа Marzban."""
+        if panel_user.get("subscription_url"):
+            return panel_user["subscription_url"]
+        links = panel_user.get("links") or panel_user.get("subscription_links")
+        if isinstance(links, list) and links:
+            return links[0]
+        if isinstance(links, str):
+            return links
+        return None
 
 
 marzban_client = MarzbanClient()

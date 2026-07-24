@@ -3,19 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Образовательные материалы{% endblock %}</title>
+    <title>{% block title %}tip My Code{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <header class="header">
         <div class="container header-inner">
-            <a href="/" class="logo">Учебный проект</a>
+            <a href="/" class="logo">tip My Code</a>
             <nav>
                 {% if user %}
-                    <a href="/cabinet">Личный кабинет</a>
+                    {% if user.role.value == 'admin' %}
+                        <a href="/admin">Админ</a>
+                    {% elif user.role.value == 'manager' %}
+                        <a href="/manager">Менеджер</a>
+                    {% else %}
+                        <a href="/cabinet">Кабинет</a>
+                    {% endif %}
                     <a href="/logout">Выйти</a>
                 {% else %}
-                    <a href="/login">Войти</a>
+                    <a href="/#login">Войти</a>
                 {% endif %}
             </nav>
         </div>
@@ -24,7 +30,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="footer">
-        <div class="container">© 2026 · Поддержка авторских материалов по программированию</div>
+        <div class="container">© 2026 · tip My Code</div>
     </footer>
 </body>
 </html>

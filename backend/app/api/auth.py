@@ -2,6 +2,7 @@ import hashlib
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -14,8 +15,9 @@ from app.config import get_settings
 from app.core.jwt import create_access_token
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.models.user import PasswordResetToken, User
+from app.models.user import EmailVerificationToken, PasswordResetToken, User
 from app.schemas.auth import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest, TokenResponse
+from app.services.email import email_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -40,6 +42,12 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Учётная запись деактивирована")
 
+    if not user.password_set:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пароль ещё не задан. Используйте ссылку-приглашение.",
+        )
+
     token = create_access_token(user.id, user.role.value)
     return TokenResponse(access_token=token)
 
@@ -63,15 +71,10 @@ async def forgot_password(
         expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
     db.add(reset_token)
-    await db.flush()
+    await db.commit()
 
-    if settings.smtp_host:
-        logger.info("SMTP not implemented yet; reset token for user %s saved", user.login)
-    else:
-        logger.info(
-            "Password reset requested for %s (SMTP not configured, token saved in DB only)",
-            user.login,
-        )
+    reset_url = f"{settings.site_base_url.rstrip('/')}/reset-password?token={raw_token}"
+    email_service.send_password_reset(user.email, reset_url)
 
     return MessageResponse(message="Если email зарегистрирован, инструкции будут отправлены")
 
@@ -103,6 +106,48 @@ async def reset_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Пользователь не найден")
 
     user.password_hash = hash_password(body.new_password)
+    user.password_set = True
     reset_token.used_at = now
+    await db.commit()
 
     return MessageResponse(message="Пароль успешно изменён")
+
+
+async def create_email_verification_token(db: AsyncSession, user: User) -> str:
+    """Создаёт токен подтверждения почты и возвращает raw token."""
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token = EmailVerificationToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=datetime.now(UTC) + timedelta(hours=48),
+    )
+    db.add(token)
+    await db.flush()
+    return raw_token
+
+
+async def verify_email_token(db: AsyncSession, raw_token: str) -> User:
+    """Подтверждает email по токену."""
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    now = datetime.now(UTC)
+    result = await db.execute(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == token_hash,
+            EmailVerificationToken.used_at.is_(None),
+            EmailVerificationToken.expires_at > now,
+        )
+    )
+    token = result.scalar_one_or_none()
+    if token is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Недействительный или просроченный токен")
+
+    user_result = await db.execute(select(User).where(User.id == token.user_id))
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Пользователь не найден")
+
+    user.email_verified_at = now
+    token.used_at = now
+    await db.flush()
+    return user

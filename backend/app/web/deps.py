@@ -7,7 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.core.jwt import decode_access_token
-from app.models.user import User
+from app.models.user import User, UserRole
+from app.web.helpers import role_home_url
 
 settings = get_settings()
 
@@ -23,7 +24,9 @@ async def get_user_from_cookie(request: Request, db: AsyncSession) -> User | Non
         return None
 
     result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.account_links))
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.account_links))
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
@@ -34,5 +37,19 @@ async def get_user_from_cookie(request: Request, db: AsyncSession) -> User | Non
 async def require_user_from_cookie(request: Request, db: AsyncSession) -> User:
     user = await get_user_from_cookie(request, db)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/#login"})
+    return user
+
+
+async def require_role_from_cookie(
+    request: Request,
+    db: AsyncSession,
+    *roles: UserRole,
+) -> User:
+    user = await require_user_from_cookie(request, db)
+    if user.role not in roles:
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": role_home_url(user.role)},
+        )
     return user

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение почты{% endblock %}
+{% block content %}
+<section class="card narrow">
+    <h1>Подтверждение почты</h1>
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    <p class="form-footer"><a href="/cabinet">← В кабинет</a></p>
+</section>
+{% endblock %}

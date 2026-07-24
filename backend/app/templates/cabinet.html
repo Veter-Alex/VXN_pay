@@ -1,42 +1,98 @@
 {% extends "base.html" %}
-{% block title %}Личный кабинет{% endblock %}
+{% block title %}Личный кабинет — tip My Code{% endblock %}
 {% block content %}
-<section class="card">
-    <h1>Личный кабинет</h1>
-    <p class="muted">Учётная запись: <strong>{{ user.login }}</strong></p>
+<section class="panel">
+    <header class="panel-header">
+        <h1>Личный кабинет</h1>
+        <p class="muted">Учётная запись: <strong>{{ user.login }}</strong></p>
+    </header>
 
-    <h2>Ваши подключения</h2>
-    {% if connections %}
-        <div class="connections">
-            {% for conn in connections %}
-            <div class="connection-item">
-                <div class="connection-name">{{ conn.name }}</div>
-                <div class="connection-meta">
-                    <span>Статус: {{ conn.status }}</span>
-                    <span>Активен до: {{ format_expires(conn.expires_at) }}</span>
-                </div>
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+    <div class="cabinet-card">
+        <dl class="cabinet-meta">
+            <div>
+                <dt>Логин</dt>
+                <dd>{{ row.user.login }}</dd>
             </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="muted">Нет привязанных подключений. Обратитесь к администратору.</p>
-    {% endif %}
+            <div>
+                <dt>Истекает</dt>
+                <dd>{{ format_expires(row.expires_at) }}</dd>
+            </div>
+            <div>
+                <dt>Ссылка подключения</dt>
+                <dd>
+                    {% set url = row.subscription_url %}
+                    {% include "partials/copy_link.html" %}
+                </dd>
+            </div>
+        </dl>
 
-    {% if connections %}
-    <h2>Продлить доступ</h2>
-    {% if stub_mode %}
-        <p class="notice">Режим тестовой оплаты (заглушка). Реальная ЮKassa подключится позже.</p>
-    {% endif %}
-    <div class="tariffs">
-        {% for tariff in tariffs %}
-        <form method="post" action="/pay/create" class="tariff-card">
-            <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
-            <h3>{{ tariff.name }}</h3>
-            <p class="price">{{ "%.0f"|format(tariff.price_rub) }} ₽</p>
-            <button type="submit" class="btn btn-primary">Поддержать проект</button>
-        </form>
-        {% endfor %}
+        <div class="cabinet-forms">
+            <div class="form-block">
+                <h2>Смена пароля</h2>
+                <p class="form-block__hint muted">Ссылка для смены пароля придёт на почту учётной записи.</p>
+                <form method="post" action="/cabinet/request-password-reset" class="form-row">
+                    <button type="submit" class="btn btn-sm btn-primary">Отправить ссылку на почту</button>
+                </form>
+            </div>
+
+            <form method="post" action="/cabinet/save" class="form-block">
+                <h2>Почта</h2>
+                <div class="form-row">
+                    <input type="email" name="email" value="{{ row.user.email or '' }}" class="field-input" placeholder="name@example.com">
+                    <button type="submit" class="btn btn-sm">Сохранить</button>
+                    {% if row.user.email %}
+                        {% if row.user.email_verified_at %}
+                        <span class="ok">Подтверждена</span>
+                        {% else %}
+                        <span class="warn">Не подтверждена</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="warn">Не задана</span>
+                    {% endif %}
+                </div>
+            </form>
+
+            {% if row.user.email and not row.user.email_verified_at %}
+            <form method="post" action="/cabinet/resend-verify" class="form-block form-block--tight">
+                <button type="submit" class="btn btn-sm">Отправить письмо подтверждения</button>
+            </form>
+            {% endif %}
+
+            <form method="post" action="/pay/create" class="form-block">
+                <h2>Оплата</h2>
+                <div class="form-row">
+                    <select name="tariff_id" class="field-input">
+                        {% for t in tariffs %}
+                        <option value="{{ t.id }}">{{ "%.0f"|format(t.price_rub) }} ₽ / {{ t.period_days }} дн.</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary">Внести</button>
+                </div>
+            </form>
+        </div>
     </div>
-    {% endif %}
+
+    {% include "partials/apps_block.html" %}
 </section>
+
+<script>
+document.querySelectorAll("[data-copy-url]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+        var url = btn.getAttribute("data-copy-url");
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(function () {
+            var prev = btn.getAttribute("title") || "";
+            btn.setAttribute("title", "Скопировано");
+            btn.classList.add("icon-btn--ok");
+            setTimeout(function () {
+                btn.setAttribute("title", prev);
+                btn.classList.remove("icon-btn--ok");
+            }, 1500);
+        });
+    });
+});
+</script>
 {% endblock %}
